@@ -1,0 +1,44 @@
+import pandas as pd
+import pandas_gbq
+import os
+
+# 1. Configuration
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "credentials/TON_FICHIER_CLE.json"
+PROJECT_ID = "portfolio-retail-fashion"
+DATASET_ID = "raw_data"
+
+def clean_column_names(df):
+    df.columns = (
+        df.columns
+        .str.strip()
+        .str.lower()
+        .str.replace(' ', '_', regex=False)
+        .str.replace(r'[^a-z0-9_]', '', regex=True)
+    )
+    return df
+
+def charger_table(nom_fichier):
+    path = f"data/{nom_fichier}.csv"
+    print(f"--- Ingestion de : {nom_fichier} ---")
+    
+    df = pd.read_csv(path, low_memory=False)
+    df = clean_column_names(df)
+    print(f"    Colonnes : {list(df.columns)}")  # Pour vérifier les noms
+
+    table_ref = f"{DATASET_ID}.{nom_fichier}"
+    
+    try:
+        pandas_gbq.to_gbq(
+            df, 
+            destination_table=table_ref, 
+            project_id=PROJECT_ID, 
+            if_exists='replace'
+        )
+        print(f"✅ Succès : {len(df)} lignes envoyées dans {nom_fichier}")
+    except Exception as e:
+        print(f"❌ Erreur sur {nom_fichier} : {e}")
+
+fichiers = ['customers', 'discounts', 'employees', 'products', 'stores', 'transactions']
+
+for f in fichiers:
+    charger_table(f)
